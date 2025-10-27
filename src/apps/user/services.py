@@ -1,23 +1,27 @@
+from src.apps.user.schemas import (
+    UserCreateSchema,
+    UserObjectSchema,
+    UserLoginSchema,
+    UserUpdateSchema
+)
 from bson import ObjectId
 from bson.errors import InvalidId
-from src.apps.organization.schemas import (
-    OrganizationCreateSchema,
-    OrganizationUpdateSchema,
-    OrganizationLoginSchema,
-    OrganizationObjectSchema
-)
-from src.errors.base import ErrorHandler
-from fastapi import Response, HTTPException, status
+from fastapi import Response
 from src.core.database import get_collection
 from src.utilities.crypto.hash import set_password, verify_password
 from src.utilities.crypto.jwt import JWTService
 from datetime import datetime
 import pytz
+from src.errors.base import ErrorHandler
+from fastapi import Response, HTTPException, status
+from datetime import datetime
+from bson import ObjectId
+import pytz
 
 
-class OrganizationService:
+class UserService:
     token = JWTService()
-    error = ErrorHandler("Organization")
+    error = ErrorHandler("User")
 
     @staticmethod
     def _set_auth_cookies(response: Response, tokens: dict):
@@ -27,7 +31,7 @@ class OrganizationService:
             httponly=True,
             secure=True,
             samesite="none",
-            max_age=900,  
+            max_age=900, 
             path="/"
         )
         response.set_cookie(
@@ -36,17 +40,16 @@ class OrganizationService:
             httponly=True,
             secure=True,
             samesite="none",
-            max_age=604800,  # 7 days
             path="/"
         )
 
     @classmethod
     async def get_collection(cls):
-        return await get_collection("Organizations")
-
+        return await get_collection("Users")
+    
 
     @classmethod
-    async def login_org(cls, dto: OrganizationLoginSchema, response: Response):
+    async def login_org(cls, dto: UserLoginSchema, response: Response):
         collection = await cls.get_collection()
         org = await collection.find_one({"email": dto.email})
         if not org:
@@ -63,58 +66,67 @@ class OrganizationService:
         return cls._set_auth_cookies(response, tokens)
 
     # ---------------- CREATE ----------------
+
+   
+
     @classmethod
-    async def create(cls, dto: OrganizationCreateSchema, response: Response):
+    async def create(cls, dto: UserCreateSchema, response: Response, org_id: str):
         collection = await cls.get_collection()
-        existing = await collection.find_one({
+        try:
+            org_object_id = ObjectId(org_id)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid organization ID")
+
+
+        existing_user = await collection.find_one({
             "$or": [
                 {"email": dto.email},
-                {"name": dto.name},
                 {"phone_number": dto.phone_number}
             ]
         })
 
-        if existing:
-            raise cls.error.get(415)
+        if existing_user:
+            if existing_user.get("email") == dto.email:
+                raise cls.error.get(415, "email already exist")
+            if existing_user.get("phone_number") == dto.phone_number:
+                raise cls.error.get(415, "Phone number already registered")
 
-        org_data = dto.dict(exclude_unset=True)
-        org_data["password"] = set_password(dto.password)
+        user_data = dto.dict(exclude_unset=True)
+        user_data["password"] = set_password(dto.password)
 
         lagos_tz = pytz.timezone("Africa/Lagos")
-        org_data["created_at"] = datetime.now(lagos_tz)
-        org_data["updated_at"] = None
-        result = await collection.insert_one(org_data)
+        user_data["created_at"] = datetime.now(lagos_tz)
+        user_data["updated_at"] = None
+        user_data["organization_id"] = org_object_id
+        result = await collection.insert_one(user_data)
         tokens = cls.token.generate_token(str(result.inserted_id))
         return cls._set_auth_cookies(response, tokens)
 
-   
-
-
     # ---------------- GET BY ID ----------------
     @classmethod
-    async def get_by_id(cls, org_id: str):
+    async def get_by_id(cls, user_id: str):
         try:
-            _id = ObjectId(org_id)
+            _id = ObjectId(user_id)
         except InvalidId:
             return None
         collection = await cls.get_collection()
         org = await collection.find({"_id": _id}).to_list(length=1)
         if org:
-            return OrganizationObjectSchema(**org[0])
+            return UserObjectSchema(**org[0])
         return None
     
     @classmethod
     async def get_all(cls):
         collection = await cls.get_collection()
         docs = await collection.find({}).to_list(length=None)
-        return [OrganizationObjectSchema(**doc) for doc in docs]
+        return [UserObjectSchema(**doc) for doc in docs]
 
 
     # ---------------- UPDATE ----------------
     @classmethod
-    async def update(cls, org_id: str, dto: OrganizationUpdateSchema):
+    async def update(cls, user_id: str, dto: UserUpdateSchema):
         try:
-            _id = ObjectId(org_id)
+            _id = ObjectId(user_id)
         except InvalidId:
             return None
 
@@ -130,16 +142,17 @@ class OrganizationService:
 
         if result.modified_count:
             org = await collection.find({"_id": _id}).to_list(length=1)
-            return OrganizationObjectSchema(**org[0])
+            return UserObjectSchema(**org[0])
         return None
 
     # ---------------- DELETE ----------------
     @classmethod
-    async def delete(cls, org_id: str):
+    async def delete(cls, user_id: str):
         try:
-            _id = ObjectId(org_id)
+            _id = ObjectId(user_id)
         except InvalidId:
             return 0
         collection = await cls.get_collection()
         result = await collection.delete_one({"_id": _id})
         return result.deleted_count
+

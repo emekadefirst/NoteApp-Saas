@@ -19,26 +19,31 @@ class PyObjectId(ObjectId):
         return {"type": "string"}
 
 
-class OrganizationCreateSchema(BaseModel):
-    name: str = Field(..., max_length=55)
+
+class UserCreateSchema(BaseModel):
+    first_name: str = Field(..., max_length=55)
+    last_name: str = Field(..., max_length=55)
     email: EmailStr
-    phone_number: str = Field(..., max_length=18)
-    password: str = Field(..., max_length=128)
+    phone_number: Optional[str] = Field(..., max_length=18)
+    password: Optional[str] = Field(None,  max_length=128)
     created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None   
 
 
-class OrganizationUpdateSchema(BaseModel):
-    name: Optional[str] = Field(None, max_length=55)
-    email: Optional[EmailStr] = None
-    phone_number: Optional[str] = Field(None, max_length=18)
-    password: Optional[str] = Field(None, max_length=128)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+class UserUpdateSchema(BaseModel):
+    first_name: Optional[str] = Field(None, max_length=55)
+    last_name: Optional[str] = Field(None, max_length=55)
+    email: EmailStr
+    phone_number: Optional[str] = Field(..., max_length=18)
+    password: Optional[str] = Field(None,  max_length=128)
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None   
 
 
-class OrganizationObjectSchema(BaseModel):
+class UserObjectSchema(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    name: str = Field(..., max_length=55)
+    first_name: str = Field(..., max_length=55)
+    last_name: str = Field(..., max_length=55)
     email: EmailStr
     phone_number: str = Field(..., max_length=18)
     password: str = Field(..., max_length=128)
@@ -46,11 +51,11 @@ class OrganizationObjectSchema(BaseModel):
     updated_at: Optional[datetime]
 
     model_config = {
-        "populate_by_name": True,  # Pydantic v2 replacement for allow_population_by_field_name
+        "populate_by_name": True,  
         "json_encoders": {ObjectId: str}
     }
 
 
-class OrganizationLoginSchema(BaseModel):
+class UserLoginSchema(BaseModel):
     email: EmailStr
     password: str = Field(..., max_length=128)
