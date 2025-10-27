@@ -18,7 +18,7 @@ dependencies = [
 ]
 [project.scripts]
 dev = "src.scripts.server:run_server"
-prod = "src.scripts.server:run_prod"
+start = "src.scripts.server:run_prod"
 
 
 [build-system]
