@@ -19,6 +19,7 @@ dependencies = [
 [project.scripts]
 dev = "src.scripts.server:run_server"
 start = "src.scripts.server:run_prod"
+seed = "src.scripts.seed:seed"
 
 
 [build-system]
