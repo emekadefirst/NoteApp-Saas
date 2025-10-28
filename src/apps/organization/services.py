@@ -75,7 +75,7 @@ class OrganizationService:
         })
 
         if existing:
-            raise cls.error.get(415)
+            raise cls.error.get(409)
 
         org_data = dto.dict(exclude_unset=True)
         org_data["password"] = set_password(dto.password)

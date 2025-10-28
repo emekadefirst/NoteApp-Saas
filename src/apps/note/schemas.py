@@ -22,6 +22,8 @@ class PyObjectId(ObjectId):
 class NoteCreateSchema(BaseModel):
     title: str = Field(..., max_length=255)
     content: str
+    user_id: Optional[str] = None
+
 
 class NoteUpdateSchema(BaseModel):
     title: Optional[str] = Field(..., max_length=255)
@@ -31,10 +33,11 @@ class NoteObjectSchema(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     title: str = Field(..., max_length=255)
     content: str
+    user_id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     created_at: datetime
     updated_at: Optional[datetime]
 
     model_config = {
-        "populate_by_name": True,  # Pydantic v2 replacement for allow_population_by_field_name
+        "populate_by_name": True, 
         "json_encoders": {ObjectId: str}
     }
