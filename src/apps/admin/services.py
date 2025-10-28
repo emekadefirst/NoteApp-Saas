@@ -70,7 +70,6 @@ class AdminService:
         existing = await collection.find_one({
             "$or": [
                 {"email": dto.email},
-                {"name": dto.name},
                 {"phone_number": dto.phone_number}
             ]
         })

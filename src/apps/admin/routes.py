@@ -13,6 +13,11 @@ jwt = JWTService()
 
 admin_router = build_router(path="admin", tags=["Admin"])
 
+@admin_router.post("/signup", status_code=201)
+async def create_admin(dto: AdminUserCreateSchema, response: Response):
+    return await AdminService.create(dto=dto, response=response)
+
+
 @admin_router.post("/login", status_code=200)
 async def login_admin(dto: AdminLoginSchema, response: Response):
     return await AdminService.login(dto=dto, response=response)
