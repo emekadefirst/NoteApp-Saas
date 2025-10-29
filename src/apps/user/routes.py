@@ -6,7 +6,7 @@ from src.apps.user.schemas import (
     UserUpdateSchema,
     UserLoginSchema,
 )
-from src.dependencies.dependencies import UserPermissionDependency
+from src.dependencies.dependencies import PermissionDependency
 from src.enums.base import Action, OrganizationModule
 
 user_router = build_router(path="users", tags=["Users"])
@@ -18,7 +18,7 @@ user_router = build_router(path="users", tags=["Users"])
 @user_router.get(
     path="",
     status_code=200,
-    dependencies=[Depends(UserPermissionDependency.permission_required(
+    dependencies=[Depends(PermissionDependency.permission_required(
         action=Action.READ, resource=OrganizationModule.USER
     ))],
 )
@@ -49,7 +49,7 @@ async def get_user_profile(request: Request):
 @user_router.get(
     path="/{id}",
     status_code=200,
-    dependencies=[Depends(UserPermissionDependency.permission_required(
+    dependencies=[Depends(PermissionDependency.permission_required(
         action=Action.READ, resource=OrganizationModule.USER
     ))],
 )
@@ -88,7 +88,7 @@ async def login_user(dto: UserLoginSchema, response: Response):
 @user_router.patch(
     path="/{id}",
     status_code=200,
-    dependencies=[Depends(UserPermissionDependency.permission_required(
+    dependencies=[Depends(PermissionDependency.permission_required(
         action=Action.UPDATE, resource=OrganizationModule.USER
     ))],
 )
@@ -102,7 +102,7 @@ async def update_user(id: str, dto: UserUpdateSchema):
 @user_router.delete(
     path="/{id}",
     status_code=204,
-    dependencies=[Depends(UserPermissionDependency.permission_required(
+    dependencies=[Depends(PermissionDependency.permission_required(
         action=Action.DELETE, resource=OrganizationModule.USER
     ))],
 )

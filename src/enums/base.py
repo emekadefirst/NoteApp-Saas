@@ -30,7 +30,3 @@ class OrganizationRole(str, Enum):
     BASE_USER = "base user"
 
 
-class OrganizationModule(str, Enum):
-    NOTE = "note"
-    USER = "user"
-    PERMISSION = "ogranization_permssions"

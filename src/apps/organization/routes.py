@@ -1,6 +1,6 @@
 from fastapi import Depends, Response, Request, HTTPException
 from src.utilities.route_builder import build_router
-from src.dependencies.dependencies import AdminPermissionDependency
+from src.dependencies.dependencies import PermissionDependency
 from src.apps.organization.services import OrganizationService
 from src.apps.organization.schemas import (
     OrganizationCreateSchema, 
@@ -20,7 +20,7 @@ organization_router = build_router(path="organizations", tags=["Organizations"])
     status_code=200,
     dependencies=[
         Depends(
-            AdminPermissionDependency.permission_required(
+            PermissionDependency.permission_required(
                 action=Action.READ,
                 resource=Module.ORGANIZATION
             )
@@ -58,7 +58,7 @@ async def get_organization_profile(request: Request):
     status_code=200,
     dependencies=[
         Depends(
-            AdminPermissionDependency.permission_required(
+            PermissionDependency.permission_required(
                 action=Action.READ,
                 resource=Module.ORGANIZATION
             )
@@ -93,7 +93,7 @@ async def login_organization(dto: OrganizationLoginSchema, response: Response):
     status_code=200,
     dependencies=[
         Depends(
-            AdminPermissionDependency.permission_required(
+            PermissionDependency.permission_required(
                 action=Action.UPDATE,
                 resource=Module.ORGANIZATION
             )
@@ -112,7 +112,7 @@ async def update_organization(id: str, dto: OrganizationUpdateSchema):
     status_code=204,
     dependencies=[
         Depends(
-            AdminPermissionDependency.permission_required(
+            PermissionDependency.permission_required(
                 action=Action.DELETE,
                 resource=Module.ORGANIZATION
             )

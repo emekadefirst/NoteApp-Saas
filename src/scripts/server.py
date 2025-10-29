@@ -8,7 +8,7 @@ app = FastAPI(
     default_response_class=responses.ORJSONResponse
 )
 
-app.add_middleware(AuthObjectMiddleware)
+# app.add_middleware(AuthObjectMiddleware)
 
 @app.get("/", status_code=200)
 async def index():
