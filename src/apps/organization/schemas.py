@@ -2,6 +2,7 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from datetime import datetime
 from bson import ObjectId
+from src.utilities.base_schema import AccountBaseModel
 
 class PyObjectId(ObjectId):
     @classmethod
@@ -19,11 +20,9 @@ class PyObjectId(ObjectId):
         return {"type": "string"}
 
 
-class OrganizationCreateSchema(BaseModel):
+class OrganizationCreateSchema(AccountBaseModel):
     name: str = Field(..., max_length=55)
-    email: EmailStr
-    phone_number: str = Field(..., max_length=18)
-    password: str = Field(..., max_length=128)
+
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -46,7 +45,7 @@ class OrganizationObjectSchema(BaseModel):
     updated_at: Optional[datetime]
 
     model_config = {
-        "populate_by_name": True,  # Pydantic v2 replacement for allow_population_by_field_name
+        "populate_by_name": True, 
         "json_encoders": {ObjectId: str}
     }
 

@@ -59,7 +59,8 @@ class OrganizationService:
             {"_id": org["_id"]},
             {"$set": {"last_login": datetime.now(lagos_tz)}}
         )
-        tokens = cls.token.generate_token(str(org["_id"]))
+        data = {"id": str(org["_id"]), "user_type": "organization"}
+        tokens = cls.token.generate_token(data)
         return cls._set_auth_cookies(response, tokens)
 
     # ---------------- CREATE ----------------
@@ -84,7 +85,8 @@ class OrganizationService:
         org_data["created_at"] = datetime.now(lagos_tz)
         org_data["updated_at"] = None
         result = await collection.insert_one(org_data)
-        tokens = cls.token.generate_token(str(result.inserted_id))
+        data = {"id": str(result.inserted_id), "user_type": "organization"}
+        tokens = cls.token.generate_token(data)
         return cls._set_auth_cookies(response, tokens)
 
    

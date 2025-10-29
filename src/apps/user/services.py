@@ -17,6 +17,7 @@ from fastapi import Response, HTTPException, status
 from datetime import datetime
 from bson import ObjectId
 import pytz
+from src.enums.base import OrganizationRole
 
 
 class UserService:
@@ -62,7 +63,8 @@ class UserService:
             {"_id": org["_id"]},
             {"$set": {"last_login": datetime.now(lagos_tz)}}
         )
-        tokens = cls.token.generate_token(str(org["_id"]))
+        data = {"id": str(org["_id"]), "user_type": "user"}
+        tokens = cls.token.generate_token(data)   
         return cls._set_auth_cookies(response, tokens)
 
     # ---------------- CREATE ----------------
@@ -92,14 +94,19 @@ class UserService:
                 raise cls.error.get(415, "Phone number already registered")
 
         user_data = dto.dict(exclude_unset=True)
+        if dto.password == None:
+            user_data["password"] = None
         user_data["password"] = set_password(dto.password)
 
         lagos_tz = pytz.timezone("Africa/Lagos")
         user_data["created_at"] = datetime.now(lagos_tz)
         user_data["updated_at"] = None
-        user_data["organization_id"] = org_object_id
+        user_data["updated_at"] = None
+        user_data["role"] = OrganizationRole.BASE_USER
+        user_data["permission_groups"] = []
         result = await collection.insert_one(user_data)
-        tokens = cls.token.generate_token(str(result.inserted_id))
+        data = {"id": str(result.inserted_id), "user_type": "user"}
+        tokens = cls.token.generate_token(data)        
         return cls._set_auth_cookies(response, tokens)
 
     # ---------------- GET BY ID ----------------

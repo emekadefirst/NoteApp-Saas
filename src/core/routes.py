@@ -2,10 +2,14 @@ from src.apps.organization.routes import organization_router
 from src.apps.user.routes import user_router
 from src.apps.note.routes import note_router
 from src.apps.admin.routes import admin_router
+from src.apps.permission.routes.admin_permission_routes import admin_permission_router
+from src.apps.permission.routes.organization_permssion_routes import organization_permission_router
 
 routes = [
    organization_router,
    user_router,
    note_router,
-   admin_router
+   admin_router,
+   admin_permission_router,
+   organization_permission_router,
 ]

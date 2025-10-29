@@ -1,12 +1,14 @@
 import uvicorn
 from fastapi import FastAPI, responses
 from src.core.routes import routes
+from src.dependencies.middlewares import AuthObjectMiddleware
 
 app = FastAPI(
     title="Multi-Tenant Note app",
     default_response_class=responses.ORJSONResponse
 )
 
+app.add_middleware(AuthObjectMiddleware)
 
 @app.get("/", status_code=200)
 async def index():

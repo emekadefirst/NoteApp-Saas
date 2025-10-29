@@ -5,6 +5,7 @@ class Module(str, Enum):
     ORGANIZATION = "organization"
     USER = "user"
     PERMISSION = "permssions"
+    ADMIN = "admin"
 
 
 class Action(str, Enum):
@@ -32,4 +33,4 @@ class OrganizationRole(str, Enum):
 class OrganizationModule(str, Enum):
     NOTE = "note"
     USER = "user"
-    ORG_PERMISSION = "ogranization_permssions"
+    PERMISSION = "ogranization_permssions"

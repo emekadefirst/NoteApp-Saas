@@ -26,8 +26,8 @@ class AdminService:
             key="access_token",
             value=tokens["access_token"],
             httponly=True,
-            secure=True,
-            samesite="none",
+            secure=False,
+            samesite="lax",
             max_age=900,  
             path="/"
         )
@@ -35,15 +35,15 @@ class AdminService:
             key="refresh_token",
             value=tokens["refresh_token"],
             httponly=True,
-            secure=True,
-            samesite="none",
+            secure=False,
+            samesite="lax",
             max_age=604800,  # 7 days
             path="/"
         )
 
     @classmethod
     async def get_collection(cls):
-        return await get_collection("Admin")
+        return await get_collection("Admins")
 
 
     @classmethod
@@ -60,7 +60,8 @@ class AdminService:
             {"_id": org["_id"]},
             {"$set": {"last_login": datetime.now(lagos_tz)}}
         )
-        tokens = cls.token.generate_token(str(org["_id"]))
+        data = {"id": str(org["_id"]), "user_type": "admin"}
+        tokens = cls.token.generate_token(data)
         return cls._set_auth_cookies(response, tokens)
 
     # ---------------- CREATE ----------------
@@ -86,7 +87,8 @@ class AdminService:
         admin_data["role"] = AdminRole.MODERATOR
         admin_data["permission_groups"] = []
         result = await collection.insert_one(admin_data)
-        tokens = cls.token.generate_token(str(result.inserted_id))
+        data = {"id": str(result.inserted_id), "user_type": "admin"}
+        tokens = cls.token.generate_token(data)
         return cls._set_auth_cookies(response, tokens)
 
    
