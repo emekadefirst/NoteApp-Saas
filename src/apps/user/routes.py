@@ -6,8 +6,8 @@ from src.apps.user.schemas import (
     UserUpdateSchema,
     UserLoginSchema,
 )
-from src.dependencies.dependencies import PermissionDependency
-from src.enums.base import Action, OrganizationModule
+from src.dependencies.dependencies import PermissionControl
+from src.enums.base import Action, Module
 
 user_router = build_router(path="users", tags=["Users"])
 
@@ -18,8 +18,8 @@ user_router = build_router(path="users", tags=["Users"])
 @user_router.get(
     path="",
     status_code=200,
-    dependencies=[Depends(PermissionDependency.permission_required(
-        action=Action.READ, resource=OrganizationModule.USER
+    dependencies=[Depends(PermissionControl.permission_required(
+        action=Action.READ, resource=Module.USER
     ))],
 )
 async def get_all_users(request: Request):
@@ -49,8 +49,8 @@ async def get_user_profile(request: Request):
 @user_router.get(
     path="/{id}",
     status_code=200,
-    dependencies=[Depends(PermissionDependency.permission_required(
-        action=Action.READ, resource=OrganizationModule.USER
+    dependencies=[Depends(PermissionControl.permission_required(
+        action=Action.READ, resource=Module.USER
     ))],
 )
 async def get_user(id: str):
@@ -88,8 +88,8 @@ async def login_user(dto: UserLoginSchema, response: Response):
 @user_router.patch(
     path="/{id}",
     status_code=200,
-    dependencies=[Depends(PermissionDependency.permission_required(
-        action=Action.UPDATE, resource=OrganizationModule.USER
+    dependencies=[Depends(PermissionControl.permission_required(
+        action=Action.UPDATE, resource=Module.USER
     ))],
 )
 async def update_user(id: str, dto: UserUpdateSchema):
@@ -102,8 +102,8 @@ async def update_user(id: str, dto: UserUpdateSchema):
 @user_router.delete(
     path="/{id}",
     status_code=204,
-    dependencies=[Depends(PermissionDependency.permission_required(
-        action=Action.DELETE, resource=OrganizationModule.USER
+    dependencies=[Depends(PermissionControl.permission_required(
+        action=Action.DELETE, resource=Module.USER
     ))],
 )
 async def delete_user(id: str):

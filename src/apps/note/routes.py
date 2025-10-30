@@ -3,8 +3,8 @@ from fastapi import Depends, Request
 from src.utilities.route_builder import build_router
 from src.apps.note.services import NoteService
 from src.apps.note.schemas import NoteCreateSchema, NoteUpdateSchema
-from src.dependencies.dependencies import PermissionDependency
-from src.enums.base import Action, OrganizationModule
+from src.dependencies.dependencies import PermissionControl
+from src.enums.base import Action, Module
 
 note_router = build_router(path="notes", tags=["Notes"])
 
@@ -14,9 +14,9 @@ note_router = build_router(path="notes", tags=["Notes"])
     status_code=200,
     dependencies=[
         Depends(
-            PermissionDependency.permission_required(
+            PermissionControl.permission_required(
                 action=Action.READ,
-                resource=OrganizationModule.NOTE
+                resource=Module.NOTE
             )
         )
     ],
@@ -30,9 +30,9 @@ async def get_all_notes():
     status_code=200,
     dependencies=[
         Depends(
-            PermissionDependency.permission_required(
+            PermissionControl.permission_required(
                 action=Action.READ,
-                resource=OrganizationModule.NOTE
+                resource=Module.NOTE
             )
         )
     ],
@@ -57,9 +57,9 @@ async def get_user_notes(request: Request):
     status_code=200,
     dependencies=[
         Depends(
-            PermissionDependency.permission_required(
+            PermissionControl.permission_required(
                 action=Action.READ,
-                resource=OrganizationModule.NOTE
+                resource=Module.NOTE
             )
         )
     ],
@@ -73,9 +73,9 @@ async def get_note_by_id(id: str):
     status_code=201,
     dependencies=[
         Depends(
-            PermissionDependency.permission_required(
+            PermissionControl.permission_required(
                 action=Action.CREATE,
-                resource=OrganizationModule.NOTE
+                resource=Module.NOTE
             )
         )
     ],
@@ -100,9 +100,9 @@ async def create_note(dto: NoteCreateSchema, request: Request):
     status_code=200,
     dependencies=[
         Depends(
-            PermissionDependency.permission_required(
+            PermissionControl.permission_required(
                 action=Action.UPDATE,
-                resource=OrganizationModule.NOTE
+                resource=Module.NOTE
             )
         )
     ],
@@ -116,9 +116,9 @@ async def update_note(id: str, dto: NoteUpdateSchema):
     status_code=204,
     dependencies=[
         Depends(
-            PermissionDependency.permission_required(
+            PermissionControl.permission_required(
                 action=Action.DELETE,
-                resource=OrganizationModule.NOTE
+                resource=Module.NOTE
             )
         )
     ],

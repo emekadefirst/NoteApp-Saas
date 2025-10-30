@@ -1,183 +1,208 @@
-from fastapi import Depends, Request
-from src.utilities.crypto.jwt import JWTService
+from fastapi import Request, Depends, HTTPException
 from src.errors.base import ErrorHandler
+from src.enums.base import Action, Module, AdminRole
+from src.apps.admin.services import AdminService
+from src.apps.user.services import UserService
+from src.apps.organization.services import OrganizationService
 from src.core.database import get_collection
-from src.enums.base import AdminRole, Action, Module, OrganizationRole
 from bson import ObjectId
-from typing import Optional
-from src.apps.admin.schemas import AdminObjectSchema
-from src.apps.organization.schemas import OrganizationObjectSchema
-from src.apps.user.schemas import UserObjectSchema
+from bson.errors import InvalidId
 
 
-# -------------------------------------------------------------------
-# BASE PERMISSION
-# -------------------------------------------------------------------
-class BasePermissionDependency:
-    jwt = JWTService()
-    error = ErrorHandler("Permission")
+class AdminPermissionDependency:
+    error = ErrorHandler("AdminPermission")
 
-    @staticmethod
-    def _safe_objectid(value):
-        if isinstance(value, ObjectId):
-            return value
-        if isinstance(value, dict) and "_id" in value:
-            return ObjectId(value["_id"])
-        return ObjectId(value)
-
-    @staticmethod
-    async def _resolve_account(user_data: dict):
+    @classmethod
+    async def has_permission(cls, user_id: str, action: Action, resource: Module) -> bool:
         """
-        Resolves JWT payload into a full object schema.
+        Checks if an admin user has permission to perform an action on a module.
+        Super admins automatically have all permissions.
         """
-        if not user_data:
-            return None, None
+        try:
+            admin_collection = await get_collection("Admin")
+            admin = await admin_collection.find_one({"_id": ObjectId(user_id)})
 
-        user_id = user_data.get("id")
-        user_type = user_data.get("user_type")
+            if not admin:
+                raise cls.error.get(404, "Admin not found")
+
+            # If admin has global privileges (super admin)
+            if admin.get("role", AdminRole.ADMIN):
+                return True
+
+            # Check group-based permissions
+            permission_group_ids = admin.get("permission_groups", [])
+            if not permission_group_ids:
+                return False
+
+            group_collection = await get_collection("PermissionGroup")
+            permission_collection = await get_collection("Permission")
+
+            groups = await group_collection.find({
+                "_id": {"$in": [ObjectId(g) for g in permission_group_ids]}
+            }).to_list(None)
+
+            for group in groups:
+                perms = await permission_collection.find({
+                    "_id": {"$in": [ObjectId(p) for p in group.get("permissions", [])]},
+                    "action": action,
+                    "module": resource
+                }).to_list(None)
+                if perms:
+                    return True
+
+            return False
+
+        except InvalidId:
+            raise cls.error.get(400, "Invalid admin ID")
+
+
+class OrganizationPermissionDependency:
+    error = ErrorHandler("OrganizationPermission")
+
+    @classmethod
+    async def has_permission(cls, user_id: str, action: Action, resource: Module) -> bool:
+        """
+        Checks if an organization account has permission.
+        If the organization is a moderator-level account, it checks group-based permissions.
+        """
+        try:
+            org_collection = await get_collection("Organization")
+            organization = await org_collection.find_one({"_id": ObjectId(user_id)})
+
+            if not organization:
+                raise cls.error.get(404, "Organization not found")
+
+            # Organization owners have full access
+            if organization.get("role") == "owner":
+                return True
+
+            permission_group_ids = organization.get("permission_groups", [])
+            if not permission_group_ids:
+                return False
+
+            group_collection = await get_collection("PermissionGroup")
+            permission_collection = await get_collection("Permission")
+
+            groups = await group_collection.find({
+                "_id": {"$in": [ObjectId(g) for g in permission_group_ids]}
+            }).to_list(None)
+
+            for group in groups:
+                perms = await permission_collection.find({
+                    "_id": {"$in": [ObjectId(p) for p in group.get("permissions", [])]},
+                    "action": action,
+                    "module": resource
+                }).to_list(None)
+                if perms:
+                    return True
+
+            return False
+
+        except InvalidId:
+            raise cls.error.get(400, "Invalid organization ID")
+
+
+class UserPermissionDependency:
+    error = ErrorHandler("UserPermission")
+
+    @classmethod
+    async def has_permission(cls, user_id: str, action: Action, resource: Module) -> bool:
+        """
+        Checks if a base user has permission.
+        Only users with attached permission groups can have permissions.
+        """
+        try:
+            user_collection = await get_collection("User")
+            user = await user_collection.find_one({"_id": ObjectId(user_id)})
+
+            if not user:
+                raise cls.error.get(404, "User not found")
+
+            # Base users without permission groups cannot access
+            permission_group_ids = user.get("permission_groups", [])
+            if not permission_group_ids:
+                return False
+
+            group_collection = await get_collection("PermissionGroup")
+            permission_collection = await get_collection("Permission")
+
+            groups = await group_collection.find({
+                "_id": {"$in": [ObjectId(g) for g in permission_group_ids]}
+            }).to_list(None)
+
+            for group in groups:
+                perms = await permission_collection.find({
+                    "_id": {"$in": [ObjectId(p) for p in group.get("permissions", [])]},
+                    "action": action,
+                    "module": resource
+                }).to_list(None)
+                if perms:
+                    return True
+
+            return False
+
+        except InvalidId:
+            raise cls.error.get(400, "Invalid user ID")
+
+
+
+class PermissionControl:
+    error = ErrorHandler("PermissionControl")
+
+    @classmethod
+    async def validate_permission(cls, request: Request, action: Action, resource: Module):
+        """
+        Determines if the current authenticated account has the given permission.
+        The middleware must set request.state.user_type and request.state.user_id.
+        """
+        user_type = getattr(request.state, "user_type", None)
+        user_id = getattr(request.state, "user_id", None)
+
         if not user_id or not user_type:
-            return None, None
+            raise HTTPException(status_code=401, detail="Unauthorized")
 
+        # ---------------- ADMIN ----------------
         if user_type == "admin":
-            collection = await get_collection("Admins")
-            admin = await collection.find_one({"_id": ObjectId(user_id)})
-            return (AdminObjectSchema(**admin), "admin") if admin else (None, None)
+            admin = await AdminService.get_by_id(user_id)
+            if not admin:
+                raise HTTPException(status_code=404, detail="Admin not found")
+
+            # ✅ Ensure this matches your admin structure (e.g. admin["role"] == "admin")
+            if admin.role == "admin":
+                return True  # full access for admin
+            else:
+                raise HTTPException(status_code=403, detail="Forbidden: invalid admin role")
 
         elif user_type == "organization":
-            collection = await get_collection("Organizations")
-            org = await collection.find_one({"_id": ObjectId(user_id)})
-            return (OrganizationObjectSchema(**org), "organization") if org else (None, None)
+            has_permission = await OrganizationPermissionDependency.has_permission(
+                user_id=user_id, action=action, resource=resource
+            )
 
+        # ---------------- USER ----------------
         elif user_type == "user":
-            collection = await get_collection("Users")
-            user = await collection.find_one({"_id": ObjectId(user_id)})
-            return (UserObjectSchema(**user), "user") if user else (None, None)
+            has_permission = await UserPermissionDependency.has_permission(
+                user_id=user_id, action=action, resource=resource
+            )
 
-        return None, None
+        else:
+            raise HTTPException(status_code=403, detail="Invalid user type")
 
+        if not has_permission:
+            raise HTTPException(status_code=403, detail="Permission denied")
 
-# -------------------------------------------------------------------
-# ADMIN PERMISSIONS
-# -------------------------------------------------------------------
-class AdminPermissionDependency(BasePermissionDependency):
-    error = ErrorHandler("Admin Permission")
+        return True
 
-    @classmethod
-    async def has_permission(cls, admin: AdminObjectSchema, action: Action, resource: Module) -> bool:
-        # Full access for system admins
-        if admin.role == AdminRole.ADMIN:
-            return True
-
-        # Moderators: check group-based permissions
-        if admin.role == AdminRole.MODERATOR:
-            permission_group_collection = await get_collection("AdminPermissionGroups")
-            permission_collection = await get_collection("AdminPermissions")
-
-            group_ids = [cls._safe_objectid(g) for g in getattr(admin, "permission_groups", [])]
-            if not group_ids:
-                return False
-
-            groups = await permission_group_collection.find({"_id": {"$in": group_ids}}).to_list(length=None)
-            for group in groups:
-                perm_ids = group.get("permissions", [])
-                if not perm_ids:
-                    continue
-                perms = await permission_collection.find({"_id": {"$in": perm_ids}}).to_list(length=None)
-                for perm in perms:
-                    if perm.get("action") == action and perm.get("module") == resource:
-                        return True
-        return False
-
-
-# -------------------------------------------------------------------
-# ORGANIZATION + USER PERMISSIONS
-# -------------------------------------------------------------------
-class UserPermissionDependency(BasePermissionDependency):
-    error = ErrorHandler("User Permission")
-
-    @classmethod
-    async def has_permission(
-        cls,
-        action: Action,
-        resource: Module,
-        user: Optional[UserObjectSchema] = None,
-        organization: Optional[OrganizationObjectSchema] = None
-    ) -> bool:
-        # --- Organization Level ---
-        if organization:
-            # Organization can manage its own users and notes only
-            if resource in [Module.USER, Module.NOTE]:
-                return True
-            return False
-
-        # --- User Level ---
-        if not user:
-            return False
-
-        # Base user can only access their own notes
-        if getattr(user, "role", None) == OrganizationRole.BASE_USER:
-            return resource == Module.NOTE
-
-        # Moderators: check permissions
-        if getattr(user, "role", None) == OrganizationRole.MODERATOR:
-            permission_group_collection = await get_collection("UserPermissionGroups")
-            permission_collection = await get_collection("UserPermissions")
-
-            group_ids = [cls._safe_objectid(g) for g in getattr(user, "permission_groups", [])]
-            if not group_ids:
-                return False
-
-            groups = await permission_group_collection.find({"_id": {"$in": group_ids}}).to_list(length=None)
-            for group in groups:
-                perm_ids = group.get("permissions", [])
-                if not perm_ids:
-                    continue
-                perms = await permission_collection.find({"_id": {"$in": perm_ids}}).to_list(length=None)
-                for perm in perms:
-                    if perm.get("action") == action and perm.get("module") == resource:
-                        return True
-        return False
-
-
-# -------------------------------------------------------------------
-# UNIVERSAL WRAPPER
-# -------------------------------------------------------------------
-class PermissionDependency(BasePermissionDependency):
-    error = ErrorHandler("Permission")
-
+    # ---------------- ROUTE DECORATOR ----------------
     @classmethod
     def permission_required(cls, action: Action, resource: Module):
+        """
+        Usage:
+            @router.get(
+                "/notes",
+                dependencies=[Depends(PermissionControl.permission_required(Action.READ, Module.NOTE))]
+            )
+        """
         async def dependency(request: Request):
-            account_data = getattr(request.state, "account", None)
-
-            if not account_data:
-                raise cls.error.get(401, "Authentication required or invalid token.")
-
-            account, account_type = await cls._resolve_account(account_data)
-            if not account:
-                raise cls.error.get(401, "Unable to resolve account information.")
-
-            # --- ADMIN ---
-            if account_type == "admin":
-                has_perm = await AdminPermissionDependency.has_permission(account, action, resource)
-                if not has_perm:
-                    raise cls.error.get(403, "Admin lacks permission for this action.")
-                return account
-
-            # --- ORGANIZATION ---
-            if account_type == "organization":
-                has_perm = await UserPermissionDependency.has_permission(action, resource, None, account)
-                if not has_perm:
-                    raise cls.error.get(403, "Organization lacks permission for this action.")
-                return account
-
-            # --- USER ---
-            if account_type == "user":
-                has_perm = await UserPermissionDependency.has_permission(action, resource, account)
-                if not has_perm:
-                    raise cls.error.get(403, "User lacks permission for this action.")
-                return account
-
-            raise cls.error.get(401, f"Unknown account type: {account_type}")
+            await cls.validate_permission(request, action, resource)
 
         return dependency

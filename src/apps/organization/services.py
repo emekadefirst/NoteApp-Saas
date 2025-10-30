@@ -65,8 +65,11 @@ class OrganizationService:
 
     # ---------------- CREATE ----------------
     @classmethod
-    async def create(cls, dto: OrganizationCreateSchema, response: Response):
+    async def create(cls, dto, response: Response):
         collection = await cls.get_collection()
+        perm_group_col = await get_collection("PermissionGroups")
+
+        # Check for existing organization
         existing = await collection.find_one({
             "$or": [
                 {"email": dto.email},
@@ -76,20 +79,38 @@ class OrganizationService:
         })
 
         if existing:
-            raise cls.error.get(409)
+            raise cls.error.get(409, "Organization already exists")
 
+        # Fetch permission groups
+        note_perm_group = await perm_group_col.find_one({"name": "NotePermission"})
+        user_perm_group = await perm_group_col.find_one({"name": "UserPermission"})
+
+        if not note_perm_group or not user_perm_group:
+            raise HTTPException(
+                status_code=500,
+                detail="Required permission groups (NotePermission, UserPermission) not found. Please seed permissions first."
+            )
+
+        # Prepare organization data
+        lagos_tz = pytz.timezone("Africa/Lagos")
         org_data = dto.dict(exclude_unset=True)
         org_data["password"] = set_password(dto.password)
-
-        lagos_tz = pytz.timezone("Africa/Lagos")
         org_data["created_at"] = datetime.now(lagos_tz)
         org_data["updated_at"] = None
+        org_data["permission_groups"] = [
+            note_perm_group["_id"],
+            user_perm_group["_id"],
+        ]
+
+        # Insert organization
         result = await collection.insert_one(org_data)
+
+        # Generate tokens
         data = {"id": str(result.inserted_id), "user_type": "organization"}
         tokens = cls.token.generate_token(data)
-        return cls._set_auth_cookies(response, tokens)
 
-   
+        print(f"✅ Organization '{dto.name}' created with NotePermission and UserPermission")
+        return cls._set_auth_cookies(response, tokens)
 
 
     # ---------------- GET BY ID ----------------

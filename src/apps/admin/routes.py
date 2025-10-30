@@ -6,7 +6,7 @@ from src.apps.admin.schemas import (
     AdminUserCreateSchema, 
     AdminUserUpdateSchema
 )
-from src.dependencies.dependencies import PermissionDependency
+from src.dependencies.dependencies import PermissionControl
 from src.enums.base import Action, Module
 
 admin_router = build_router(path="admin", tags=["Admin"])
@@ -26,7 +26,7 @@ async def login_admin(dto: AdminLoginSchema, response: Response):
     status_code=200,
     dependencies=[
         Depends(
-            PermissionDependency.permission_required(
+            PermissionControl.permission_required(
                 action=Action.READ,
                 resource=Module.ADMIN
             )
@@ -50,7 +50,7 @@ async def get_admin_detail(request: Request):
     status_code=200,
     dependencies=[
         Depends(
-            PermissionDependency.permission_required(
+            PermissionControl.permission_required(
                 action=Action.UPDATE,
                 resource=Module.ADMIN
             )
@@ -65,7 +65,7 @@ async def update_admin(id: str, dto: AdminUserUpdateSchema):
     status_code=204,
     dependencies=[
         Depends(
-            PermissionDependency.permission_required(
+            PermissionControl.permission_required(
                 action=Action.DELETE,
                 resource=Module.ADMIN
             )

@@ -20,6 +20,8 @@ import pytz
 from src.enums.base import OrganizationRole
 
 
+user_perm = get_collection("PermissionGroups")
+
 class UserService:
     token = JWTService()
     error = ErrorHandler("User")
@@ -67,23 +69,20 @@ class UserService:
         tokens = cls.token.generate_token(data)   
         return cls._set_auth_cookies(response, tokens)
 
+
     # ---------------- CREATE ----------------
-
-   
-
     @classmethod
-    async def create(cls, dto: UserCreateSchema, response: Response, org_id: str | None = None):
-        collection = await cls.get_collection()
+    async def create(cls, dto, response: Response, org_id: str | None = None):
+        users_col = await cls.get_collection()
+        perm_group_col = await get_collection("PermissionGroups")
 
-        # Validate org_id only if provided
         if org_id:
             try:
                 org_object_id = ObjectId(org_id)
             except Exception:
                 raise HTTPException(status_code=400, detail="Invalid organization ID")
 
-        # Check for existing email or phone number
-        existing_user = await collection.find_one({
+        existing_user = await users_col.find_one({
             "$or": [
                 {"email": dto.email},
                 {"phone_number": dto.phone_number}
@@ -96,29 +95,28 @@ class UserService:
             if existing_user.get("phone_number") == dto.phone_number:
                 raise cls.error.get(415, "Phone number already registered")
 
-        # Prepare user data
-        user_data = dto.dict(exclude_unset=True)
-        user_data["password"] = set_password(dto.password) if dto.password else None
-
+        # Fetch NotePermission group
+        note_group = await perm_group_col.find_one({"name": "NotePermission"})
+        if not note_group:
+            raise cls.error.get(404, "NotePermission group not found. Please seed permissions first.")
         lagos_tz = pytz.timezone("Africa/Lagos")
+        user_data = dto.dict(exclude_unset=True)
+        user_data["password"] = set_password(dto.password)
         user_data["created_at"] = datetime.now(lagos_tz)
         user_data["updated_at"] = None
         user_data["role"] = OrganizationRole.BASE_USER
-        user_data["permission_groups"] = []
+        user_data["permission_groups"] = [note_group["_id"]]
 
-        # Only attach org_id if user belongs to an organization
         if org_id:
             user_data["organization_id"] = org_object_id
-
-        result = await collection.insert_one(user_data)
-
-        # Generate tokens
+        result = await users_col.insert_one(user_data)
         data = {"id": str(result.inserted_id), "user_type": "user"}
         tokens = cls.token.generate_token(data)
 
+        print(f"✅ New user created with NotePermission: {dto.email}")
         return cls._set_auth_cookies(response, tokens)
-
-
+    
+    
     # ---------------- GET BY ID ----------------
     @classmethod
     async def get_by_id(cls, user_id: str):

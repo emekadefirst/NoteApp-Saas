@@ -8,7 +8,7 @@ from src.apps.permission.schemas import (
     PermissionObjectSchema,
     PermissionGroupObjectSchema,
 )
-from src.dependencies.dependencies import PermissionDependency
+from src.dependencies.dependencies import PermissionControl
 from src.enums.base import Action, Module
 
 permission_router = build_router(path="permissions", tags=["Permissions"])
@@ -21,7 +21,7 @@ permission_router = build_router(path="permissions", tags=["Permissions"])
     status_code=200,
     dependencies=[
         Depends(
-            PermissionDependency.permission_required(
+            PermissionControl.permission_required(
                 action=Action.READ,
                 resource=Module.PERMISSION,
             )
@@ -37,7 +37,7 @@ async def get_all_permissions():
     status_code=200,
     dependencies=[
         Depends(
-            PermissionDependency.permission_required(
+            PermissionControl.permission_required(
                 action=Action.READ,
                 resource=Module.PERMISSION,
             )
@@ -45,7 +45,7 @@ async def get_all_permissions():
     ],
 )
 async def get_permission_by_id(id: str):
-    return await PermissionService.get_by_id(permission_id=id)
+    return await PermissionService.get_by_id(id=id)
 
 
 @permission_router.post(
@@ -53,7 +53,7 @@ async def get_permission_by_id(id: str):
     status_code=201,
     dependencies=[
         Depends(
-            PermissionDependency.permission_required(
+            PermissionControl.permission_required(
                 action=Action.CREATE,
                 resource=Module.PERMISSION,
             )
@@ -69,7 +69,7 @@ async def create_permission(dto: PermissionObjectSchema, request: Request):
     status_code=200,
     dependencies=[
         Depends(
-            PermissionDependency.permission_required(
+            PermissionControl.permission_required(
                 action=Action.UPDATE,
                 resource=Module.PERMISSION,
             )
@@ -85,7 +85,7 @@ async def update_permission(id: str, dto: PermissionObjectSchema):
     status_code=204,
     dependencies=[
         Depends(
-            PermissionDependency.permission_required(
+            PermissionControl.permission_required(
                 action=Action.DELETE,
                 resource=Module.PERMISSION,
             )
@@ -103,9 +103,9 @@ async def delete_permission(id: str):
     status_code=200,
     dependencies=[
         Depends(
-            PermissionDependency.permission_required(
+            PermissionControl.permission_required(
                 action=Action.READ,
-                resource=Module.PERMISSION_GROUP,
+                resource=Module.PERMISSION,
             )
         )
     ],
@@ -119,7 +119,7 @@ async def get_all_permission_groups():
     status_code=200,
     dependencies=[
         Depends(
-            PermissionDependency.permission_required(
+            PermissionControl.permission_required(
                 action=Action.READ,
                 resource=Module.PERMISSION,
             )
@@ -135,7 +135,7 @@ async def get_permission_group_by_id(id: str):
     status_code=201,
     dependencies=[
         Depends(
-            PermissionDependency.permission_required(
+            PermissionControl.permission_required(
                 action=Action.CREATE,
                 resource=Module.PERMISSION,
             )
@@ -151,7 +151,7 @@ async def create_permission_group(dto: PermissionGroupObjectSchema, request: Req
     status_code=200,
     dependencies=[
         Depends(
-            PermissionDependency.permission_required(
+            PermissionControl.permission_required(
                 action=Action.UPDATE,
                 resource=Module.PERMISSION,
             )
@@ -167,7 +167,7 @@ async def update_permission_group(id: str, dto: PermissionGroupObjectSchema):
     status_code=204,
     dependencies=[
         Depends(
-            PermissionDependency.permission_required(
+            PermissionControl.permission_required(
                 action=Action.DELETE,
                 resource=Module.PERMISSION,
             )
